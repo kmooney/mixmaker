@@ -428,13 +428,14 @@ fn kick_bpm(s: &AppState) {
 async fn measure_bpm(s: &AppState, release_pk: i64, resource_pk: i64) -> anyhow::Result<Option<u32>> {
     const SR: u32 = 44100;
     let (src, _) = fetch_media(s, release_pk, resource_pk).await?;
-    // The whole track, left channel only: exactly what the browser hands
+    // The whole track, first channel only: exactly what the browser hands
     // `estimateBpm` (`getChannelData(0)` of the decoded file). Seeking in
-    // ffmpeg or downmixing instead measurably moved the estimate.
+    // ffmpeg or downmixing instead measurably moved the estimate. `c0=c0`,
+    // not `c0=FL`: a mono source has no FL, and naming it decodes silence.
     let out = tokio::process::Command::new("ffmpeg")
         .args(["-nostdin", "-loglevel", "error", "-i"])
         .arg(&src)
-        .args(["-af", "pan=mono|c0=FL", "-ar", &SR.to_string(), "-f", "f32le", "-"])
+        .args(["-af", "pan=mono|c0=c0", "-ar", &SR.to_string(), "-f", "f32le", "-"])
         .output()
         .await?;
     if !out.status.success() {
